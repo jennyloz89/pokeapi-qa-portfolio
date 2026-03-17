@@ -26,6 +26,25 @@ jobs:
         run: |
           npm install -g newman
           npm install -g newman-reporter-htmlextra
+	
+      - name: Install k6
+        run: |
+          curl https://github.com/grafana/k6/releases/download/v0.55.0/k6-v0.55.0-linux-amd64.tar.gz -L | tar xvz
+          sudo mv k6-v0.55.0-linux-amd64/k6 /usr/local/bin
+
+      - name: Run smoke test
+        run: k6 run load-tests/smoke.js --no-thresholds
+
+      - name: Run load test
+        run: k6 run load-tests/load.js --no-thresholds
+
+      - name: Upload k6 reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-reports-${{ github.run_number }}
+          path: reports/*-summary.json
+          retention-days: 30
 
       - name: Run Postman collection
         run: |
