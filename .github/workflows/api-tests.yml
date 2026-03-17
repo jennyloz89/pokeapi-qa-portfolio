@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '0 8 * * 1-5'   # Lunes a viernes 8am UTC — como un monitor real
+    - cron: '0 8 * * 1-5'
 
 jobs:
   api-tests:
@@ -26,10 +26,21 @@ jobs:
         run: |
           npm install -g newman
           npm install -g newman-reporter-htmlextra
-	
+
+      - name: Run Postman collection
+        run: newman run collections/pokeapi-collection.json --environment environments/pokeapi-environment.json --reporters cli,htmlextra --reporter-htmlextra-export reports/report.html --reporter-htmlextra-title "PokéAPI QA Suite"
+
+      - name: Upload HTML report as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-report-${{ github.run_number }}
+          path: reports/report.html
+          retention-days: 30
+
       - name: Install k6
         run: |
-          curl https://github.com/grafana/k6/releases/download/v0.55.0/k6-v0.55.0-linux-amd64.tar.gz -L | tar xvz
+          curl -L https://github.com/grafana/k6/releases/download/v0.55.0/k6-v0.55.0-linux-amd64.tar.gz | tar xvz
           sudo mv k6-v0.55.0-linux-amd64/k6 /usr/local/bin
 
       - name: Run smoke test
@@ -44,23 +55,6 @@ jobs:
         with:
           name: k6-reports-${{ github.run_number }}
           path: reports/*-summary.json
-          retention-days: 30
-
-      - name: Run Postman collection
-        run: |
-          newman run collections/pokeapi-collection.json \
-            --environment environments/pokeapi-environment.json \
-            --reporters cli,htmlextra \
-            --reporter-htmlextra-export reports/report.html \
-            --reporter-htmlextra-title "PokéAPI QA Suite" \
-            --reporter-htmlextra-showOnlyFails false
-
-      - name: Upload HTML report as artifact
-        uses: actions/upload-artifact@v4
-        if: always()    # Sube el reporte incluso si los tests fallan
-        with:
-          name: qa-report-${{ github.run_number }}
-          path: reports/report.html
           retention-days: 30
 
       - name: Publish report to GitHub Pages
