@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PokéAPI — Load Test Report</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0f1117;
+    --surface:  #1a1d27;
+    --border:   #2a2d3a;
+    --text:     #e2e4ef;
+    --muted:    #7b7f96;
+    --green:    #22c55e;
+    --amber:    #f59e0b;
+    --red:      #ef4444;
+    --blue:     #3b82f6;
+    --purple:   #8b5cf6;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 2rem 1rem;
+  }
+
+  .container { max-width: 960px; margin: 0 auto; }
+
+  header { margin-bottom: 2rem; }
+  header h1 { font-size: 22px; font-weight: 600; color: var(--text); }
+  header p  { color: var(--muted); margin-top: .25rem; font-size: 13px; }
+
+  .badge {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    padding: 2px 8px; border-radius: 20px; margin-left: .5rem;
+    vertical-align: middle;
+  }
+  .badge-green  { background: #14532d; color: #86efac; }
+  .badge-amber  { background: #451a03; color: #fcd34d; }
+  .badge-red    { background: #450a0a; color: #fca5a5; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+
+  .card-title {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--muted); margin-bottom: 1rem;
+    display: flex; align-items: center; gap: .5rem;
+  }
+
+  .card-title .icon {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .icon-smoke  { background: var(--blue); }
+  .icon-load   { background: var(--purple); }
+  .icon-stress { background: var(--amber); }
+
+  .metrics { display: grid; gap: .6rem; }
+
+  .metric-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: .4rem .6rem;
+    background: rgba(255,255,255,.03);
+    border-radius: 6px;
+  }
+
+  .metric-label { color: var(--muted); font-size: 12px; }
+  .metric-value { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .val-green  { color: var(--green); }
+  .val-amber  { color: var(--amber); }
+  .val-red    { color: var(--red); }
+  .val-blue   { color: var(--blue); }
+  .val-purple { color: var(--purple); }
+  .val-text   { color: var(--text); }
+
+  .section-title {
+    font-size: 13px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .07em;
+    margin: 1.5rem 0 .75rem;
+    padding-bottom: .5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .threshold-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .35rem .6rem;
+    border-radius: 6px;
+    margin-bottom: .3rem;
+    background: rgba(255,255,255,.03);
+    font-size: 12px;
+  }
+  .threshold-name { font-family: monospace; color: var(--text); }
+  .threshold-pass { color: var(--green); font-weight: 600; }
+  .threshold-fail { color: var(--red); font-weight: 600; }
+
+  .summary-bar {
+    display: flex; gap: .75rem; flex-wrap: wrap;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    align-items: center;
+  }
+  .summary-stat { text-align: center; }
+  .summary-stat .num { font-size: 20px; font-weight: 700; }
+  .summary-stat .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .summary-divider { width: 1px; height: 36px; background: var(--border); }
+
+  .loading {
+    text-align: center; padding: 3rem;
+    color: var(--muted); font-size: 13px;
+  }
+
+  .error-box {
+    background: #450a0a; border: 1px solid #7f1d1d;
+    border-radius: 8px; padding: 1rem;
+    color: #fca5a5; font-size: 13px; margin-bottom: 1rem;
+  }
+
+  footer {
+    margin-top: 2rem; padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted); font-size: 12px;
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>PokéAPI — Load Test Report</h1>
+    <p>k6 performance testing results · Smoke · Load · Stress</p>
+  </header>
+
+  <div id="app"><div class="loading">Loading test results...</div></div>
+
+</div>
+<script>
+const FILES = [
+  { id: 'smoke',  label: 'Smoke Test',  file: 'smoke-summary.json',  icon: 'icon-smoke',
+    desc: '1 VU · 30s · baseline verification' },
+  { id: 'load',   label: 'Load Test',   file: 'load-summary.json',   icon: 'icon-load',
+    desc: 'Ramp 5→10 VUs · 2m · sustained load' },
+  { id: 'stress', label: 'Stress Test', file: 'stress-summary.json', icon: 'icon-stress',
+    desc: 'Ramp 10→40 VUs · 2.5m · beyond limit' },
+];
+
+function ms(val) {
+  if (val === undefined || val === null) return 'N/A';
+  return Math.round(val) + 'ms';
+}
+
+function pct(val) {
+  if (val === undefined || val === null) return 'N/A';
+  return (val * 100).toFixed(2) + '%';
+}
+
+function colorForDuration(val) {
+  if (val < 500)  return 'val-green';
+  if (val < 2000) return 'val-amber';
+  return 'val-red';
+}
+
+function colorForRate(val) {
+  if (val < 0.01) return 'val-green';
+  if (val < 0.05) return 'val-amber';
+  return 'val-red';
+}
+
+function statusBadge(passed) {
+  return passed
+    ? '<span class="badge badge-green">PASSED</span>'
+    : '<span class="badge badge-red">FAILED</span>';
+}
+
+function renderCard(label, icon, desc, data) {
+  const d = data.metrics?.http_req_duration?.values || {};
+  const failed = data.metrics?.http_req_failed?.values || {};
+  const checks = data.metrics?.checks?.values || {};
+  const iters = data.metrics?.iterations?.values || {};
+
+  const allPassed = Object.values(data.thresholds || {}).every(t => t.ok !== false);
+
+  const thresholdRows = Object.entries(data.thresholds || {}).map(([name, info]) => {
+    const pass = info.ok !== false;
+    return `<div class="threshold-row">
+      <span class="threshold-name">${name}</span>
+      <span class="${pass ? 'threshold-pass' : 'threshold-fail'}">${pass ? '✓ passed' : '✗ failed'}</span>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="card">
+      <div class="card-title">
+        <span class="icon ${icon}"></span>
+        ${label} ${statusBadge(allPassed)}
+      </div>
+      <p style="color:var(--muted);font-size:12px;margin-bottom:.75rem">${desc}</p>
+      <div class="metrics">
+        <div class="metric-row">
+          <span class="metric-label">avg response</span>
+          <span class="metric-value ${colorForDuration(d.avg)}">${ms(d.avg)}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">median (p50)</span>
+          <span class="metric-value ${colorForDuration(d.med)}">${ms(d.med)}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">p(90)</span>
+          <span class="metric-value ${colorForDuration(d['p(90)'])}">${ms(d['p(90)'])}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">p(95)</span>
+          <span class="metric-value ${colorForDuration(d['p(95)'])}">${ms(d['p(95)'])}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">p(99)</span>
+          <span class="metric-value ${colorForDuration(d['p(99)'])}">${ms(d['p(99)'])}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">max</span>
+          <span class="metric-value val-text">${ms(d.max)}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">error rate</span>
+          <span class="metric-value ${colorForRate(failed.rate)}">${pct(failed.rate)}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">checks passed</span>
+          <span class="metric-value ${(checks.rate || 0) > 0.95 ? 'val-green' : 'val-red'}">${pct(checks.rate)}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">total iterations</span>
+          <span class="metric-value val-text">${iters.count || 'N/A'}</span>
+        </div>
+      </div>
+      ${thresholdRows ? `<div class="section-title">Thresholds</div>${thresholdRows}` : ''}
+    </div>`;
+}
+
+async function loadAll() {
+  const results = await Promise.all(
+    FILES.map(async f => {
+      try {
+        const res = await fetch(f.file);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        return { ...f, data, error: null };
+      } catch (e) {
+        return { ...f, data: null, error: e.message };
+      }
+    })
+  );
+
+  const loaded = results.filter(r => r.data);
+  const totalIters = loaded.reduce((sum, r) => {
+    return sum + (r.data.metrics?.iterations?.values?.count || 0);
+  }, 0);
+  const allPassed = loaded.every(r =>
+    Object.values(r.data.thresholds || {}).every(t => t.ok !== false)
+  );
+
+  let html = '';
+
+  // Summary bar
+  html += `<div class="summary-bar">
+    <div class="summary-stat">
+      <div class="num" style="color:var(--blue)">${loaded.length}/3</div>
+      <div class="lbl">suites loaded</div>
+    </div>
+    <div class="summary-divider"></div>
+    <div class="summary-stat">
+      <div class="num" style="color:var(--purple)">${totalIters}</div>
+      <div class="lbl">total iterations</div>
+    </div>
+    <div class="summary-divider"></div>
+    <div class="summary-stat">
+      <div class="num" style="color:${allPassed ? 'var(--green)' : 'var(--amber)'}">${allPassed ? 'ALL PASSED' : 'REVIEW'}</div>
+      <div class="lbl">threshold status</div>
+    </div>
+  </div>`;
+
+  // Error boxes
+  results.filter(r => r.error).forEach(r => {
+    html += `<div class="error-box">Could not load <strong>${r.file}</strong>: ${r.error}</div>`;
+  });
+
+  // Cards
+  html += '<div class="grid">';
+  loaded.forEach(r => {
+    html += renderCard(r.label, r.icon, r.desc, r.data);
+  });
+  html += '</div>';
+
+  html += `<footer>
+    <span>PokéAPI QA Portfolio · Load Test Report</span>
+    <span>Generated with k6 by Grafana</span>
+  </footer>`;
+
+  document.getElementById('app').innerHTML = html;
+}
+
+loadAll();
+</script>
+</body>
+</html>
