@@ -35,13 +35,16 @@ export default function () {
 }
 
 export function handleSummary(data) {
-    // Print key metrics to console for documentation
-    const http_req_duration = data.metrics.http_req_duration;
-    console.log('\n=== STRESS TEST RESULTS ===');
-    console.log(`avg: ${http_req_duration.values.avg.toFixed(0)}ms`);
-    console.log(`p95: ${http_req_duration.values['p(95)'].toFixed(0)}ms`);
-    console.log(`p99: ${http_req_duration.values['p(99)'].toFixed(0)}ms`);
-    console.log(`error rate: ${(data.metrics.http_req_failed.values.rate * 100).toFixed(2)}%`);
+    const duration = data.metrics.http_req_duration;
+    const failed = data.metrics.http_req_failed;
+
+    if (duration && duration.values) {
+        console.log('\n=== STRESS TEST RESULTS ===');
+        console.log(`avg: ${duration.values.avg.toFixed(0)}ms`);
+        console.log(`p95: ${duration.values['p(95)'].toFixed(0)}ms`);
+        console.log(`p99: ${duration.values['p(99)'] ? duration.values['p(99)'].toFixed(0) : 'N/A'}ms`);
+        console.log(`error rate: ${failed ? (failed.values.rate * 100).toFixed(2) : '0.00'}%`);
+    }
 
     return {
         'reports/stress-summary.json': JSON.stringify(data, null, 2),
