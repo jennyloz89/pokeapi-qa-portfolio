@@ -1,0 +1,53 @@
+name: PokéAPI QA Suite
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 8 * * 1-5'   # Lunes a viernes 8am UTC — como un monitor real
+
+jobs:
+  api-tests:
+    name: Run API Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Newman
+        run: |
+          npm install -g newman
+          npm install -g newman-reporter-htmlextra
+
+      - name: Run Postman collection
+        run: |
+          newman run collections/pokeapi-collection.json \
+            --environment environments/pokeapi-environment.json \
+            --reporters cli,htmlextra \
+            --reporter-htmlextra-export reports/report.html \
+            --reporter-htmlextra-title "PokéAPI QA Suite" \
+            --reporter-htmlextra-showOnlyFails false
+
+      - name: Upload HTML report as artifact
+        uses: actions/upload-artifact@v4
+        if: always()    # Sube el reporte incluso si los tests fallan
+        with:
+          name: qa-report-${{ github.run_number }}
+          path: reports/report.html
+          retention-days: 30
+
+      - name: Publish report to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        if: github.ref == 'refs/heads/main'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: reports
+          destination_dir: reports

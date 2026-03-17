@@ -1,0 +1,835 @@
+{
+  "info": {
+    "_postman_id": "095c4d61-f6e9-4f2d-9cd3-c25b11b4840a",
+    "name": "PokeAPI QA Testing Suite",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "52143364",
+    "_collection_link": "https://go.postman.co/collection/52143364-095c4d61-f6e9-4f2d-9cd3-c25b11b4840a?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Functional Tests",
+      "item": [
+        {
+          "name": "Pokémon by name",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();\r",
+                  "\r",
+                  "// 1. Status code\r",
+                  "pm.test(\"Status 200\", () => {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "// 2. Tiempo de respuesta\r",
+                  "pm.test(\"Respuesta en menos de 2000ms\", () => {\r",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);\r",
+                  "});\r",
+                  "\r",
+                  "// 3. Campos obligatorios presentes\r",
+                  "pm.test(\"Campos obligatorios presentes\", () => {\r",
+                  "    pm.expect(res).to.include.all.keys(\r",
+                  "        \"id\", \"name\", \"types\", \"stats\", \r",
+                  "        \"sprites\", \"abilities\", \"base_experience\", \r",
+                  "        \"height\", \"weight\"\r",
+                  "    );\r",
+                  "});\r",
+                  "\r",
+                  "// 4. Tipos de dato correctos\r",
+                  "pm.test(\"Tipos de dato correctos\", () => {\r",
+                  "    pm.expect(res.id).to.be.a(\"number\");\r",
+                  "    pm.expect(res.name).to.be.a(\"string\");\r",
+                  "    pm.expect(res.types).to.be.an(\"array\").that.is.not.empty;\r",
+                  "    pm.expect(res.stats).to.be.an(\"array\").that.is.not.empty;\r",
+                  "});\r",
+                  "\r",
+                  "// 5. Datos conocidos de Pikachu (data integrity)\r",
+                  "pm.test(\"Pikachu: ID, tipo y experiencia base correctos\", () => {\r",
+                  "    pm.expect(res.id).to.eql(25);\r",
+                  "    pm.expect(res.name).to.eql(\"pikachu\");\r",
+                  "    pm.expect(res.types[0].type.name).to.eql(\"electric\");\r",
+                  "    pm.expect(res.base_experience).to.eql(112);\r",
+                  "});\r",
+                  "\r",
+                  "// 6. Sprites no son null\r",
+                  "pm.test(\"Sprite frontal existe\", () => {\r",
+                  "    pm.expect(res.sprites.front_default).to.be.a(\"string\").and.not.empty;\r",
+                  "});\r",
+                  "\r",
+                  "// 7. Guardar ID para el test de equivalencia (Request 5)\r",
+                  "pm.environment.set(\"pikachu_id\", res.id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pokemon/pikachu",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pokemon",
+                "pikachu"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pokémon - name not found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Negative test — nombre que no existe\r",
+                  "\r",
+                  "pm.test(\"Status 404 para pokémon inexistente\", () => {\r",
+                  "    pm.response.to.have.status(404);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Body no es un objeto de pokémon válido\", () => {\r",
+                  "    // La API devuelve texto plano \"Not Found\" en 404\r",
+                  "    pm.expect(pm.response.text()).to.not.include('\"id\"');\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pokemon/pikachu123",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pokemon",
+                "pikachu123"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pokémon - ID out of range (negative)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 404 para ID fuera de rango\", () => {\r",
+                  "    pm.response.to.have.status(404);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Tiempo de respuesta aceptable incluso en 404\", () => {\r",
+                  "    const responseTime = pm.response.responseTime;\r",
+                  "    // OBSERVATION: PokéAPI takes significantly longer (~4s) to resolve\r",
+                  "    // out-of-range IDs vs invalid names (~42ms). Possible DB full-scan\r",
+                  "    // on numeric IDs that don't exist, while string lookup fails faster.\r",
+                  "    console.warn(`Response time for invalid ID: ${responseTime}ms`);\r",
+                  "    pm.expect(responseTime).to.be.below(5000);\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pokemon/99999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pokemon",
+                "99999"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pokémon list - page 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Status 200\", () => {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Estructura de paginación correcta\", () => {\r",
+                  "    pm.expect(res).to.have.all.keys(\"count\", \"next\", \"previous\", \"results\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Retorna exactamente 20 resultados\", () => {\r",
+                  "    pm.expect(res.results).to.have.lengthOf(20);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Total de pokémon es mayor o igual a 1302\", () => {\r",
+                  "    pm.expect(res.count).to.be.at.least(1302);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Cada resultado tiene name y url\", () => {\r",
+                  "    res.results.forEach((pokemon, i) => {\r",
+                  "        pm.expect(pokemon, `Item ${i}`).to.have.all.keys(\"name\", \"url\");\r",
+                  "        pm.expect(pokemon.name).to.be.a(\"string\").and.not.empty;\r",
+                  "        pm.expect(pokemon.url).to.include(\"https://pokeapi.co/api/v2/pokemon/\");\r",
+                  "    });\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"next apunta a offset=20\", () => {\r",
+                  "    pm.expect(res.next).to.include(\"offset=20\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"previous es null en la primera página\", () => {\r",
+                  "    pm.expect(res.previous).to.be.null;\r",
+                  "});\r",
+                  "\r",
+                  "// Guardar nombres de la página 1 para el test de no-repetición\r",
+                  "pm.environment.set(\"page1_names\", JSON.stringify(res.results.map(p => p.name)));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pokemon?limit=20&offset=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pokemon"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pokémon list - page 2 (no duplicates)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();\r",
+                  "const page1 = JSON.parse(pm.environment.get(\"page1_names\") || \"[]\");\r",
+                  "const page2Names = res.results.map(p => p.name);\r",
+                  "\r",
+                  "pm.test(\"Status 200\", () => {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Página 2 no repite resultados de página 1\", () => {\r",
+                  "    const overlap = page2Names.filter(name => page1.includes(name));\r",
+                  "    pm.expect(overlap).to.be.empty;\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"previous apunta a offset=0 en página 2\", () => {\r",
+                  "    pm.expect(res.previous).to.include(\"offset=0\");\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pokemon?limit=20&offset=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pokemon"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pokémon list - limit=0 (edge case)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200 con limit=0\", () => {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "// ✅ Documentamos el comportamiento real de la API\r",
+                  "pm.test(\"limit=0 es ignorado — API usa valor por defecto (20)\", () => {\r",
+                  "    const res = pm.response.json();\r",
+                  "    pm.expect(res.results.length).to.be.above(0);\r",
+                  "    console.log(`NOTA: limit=0 ignorado, API retornó ${res.results.length} resultados`);\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pokemon?limit=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pokemon"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Type fire (business rules)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Status 200\", () => {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Tipo fire tiene damage_relations\", () => {\r",
+                  "    pm.expect(res).to.have.property(\"damage_relations\");\r",
+                  "    pm.expect(res.damage_relations).to.have.all.keys(\r",
+                  "        \"double_damage_from\", \"double_damage_to\",\r",
+                  "        \"half_damage_from\", \"half_damage_to\",\r",
+                  "        \"no_damage_from\", \"no_damage_to\"\r",
+                  "    );\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Fire hace doble daño a grass, ice, bug, steel\", () => {\r",
+                  "    const targets = res.damage_relations.double_damage_to.map(t => t.name);\r",
+                  "    [\"grass\", \"ice\", \"bug\", \"steel\"].forEach(type => {\r",
+                  "        pm.expect(targets, `Falta: ${type}`).to.include(type);\r",
+                  "    });\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Fire recibe doble daño de water, ground, rock\", () => {\r",
+                  "    const sources = res.damage_relations.double_damage_from.map(t => t.name);\r",
+                  "    [\"water\", \"ground\", \"rock\"].forEach(type => {\r",
+                  "        pm.expect(sources, `Falta: ${type}`).to.include(type);\r",
+                  "    });\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/type/fire",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "type",
+                "fire"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ability blaze",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Status 200\", () => {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Tiene effect_entries en inglés\", () => {\r",
+                  "    const en = res.effect_entries.find(e => e.language.name === \"en\");\r",
+                  "    pm.expect(en).to.not.be.undefined;\r",
+                  "    pm.expect(en.effect).to.be.a(\"string\").and.not.empty;\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"ID y nombre correctos\", () => {\r",
+                  "    pm.expect(res.id).to.eql(66);\r",
+                  "    pm.expect(res.name).to.eql(\"blaze\");\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ability/blaze",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ability",
+                "blaze"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Regression Tests",
+      "item": [
+        {
+          "name": "validation - pikachu",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();\r",
+                  "\r",
+                  "// ─── Schema definition ───────────────────────────────────────\r",
+                  "const schema = {\r",
+                  "    type: \"object\",\r",
+                  "    required: [\"id\", \"name\", \"base_experience\", \"height\", \"weight\", \"types\", \"stats\", \"abilities\", \"sprites\"],\r",
+                  "    properties: {\r",
+                  "        id:              { type: \"number\" },\r",
+                  "        name:            { type: \"string\" },\r",
+                  "        base_experience: { type: \"number\" },\r",
+                  "        height:          { type: \"number\" },\r",
+                  "        weight:          { type: \"number\" },\r",
+                  "        types: {\r",
+                  "            type: \"array\",\r",
+                  "            minItems: 1,\r",
+                  "            items: {\r",
+                  "                type: \"object\",\r",
+                  "                required: [\"slot\", \"type\"],\r",
+                  "                properties: {\r",
+                  "                    slot: { type: \"number\" },\r",
+                  "                    type: {\r",
+                  "                        type: \"object\",\r",
+                  "                        required: [\"name\", \"url\"],\r",
+                  "                        properties: {\r",
+                  "                            name: { type: \"string\" },\r",
+                  "                            url:  { type: \"string\" }\r",
+                  "                        }\r",
+                  "                    }\r",
+                  "                }\r",
+                  "            }\r",
+                  "        },\r",
+                  "        stats: {\r",
+                  "            type: \"array\",\r",
+                  "            minItems: 6,\r",
+                  "            items: {\r",
+                  "                type: \"object\",\r",
+                  "                required: [\"base_stat\", \"effort\", \"stat\"],\r",
+                  "                properties: {\r",
+                  "                    base_stat: { type: \"number\" },\r",
+                  "                    effort:    { type: \"number\" },\r",
+                  "                    stat: {\r",
+                  "                        type: \"object\",\r",
+                  "                        required: [\"name\", \"url\"]\r",
+                  "                    }\r",
+                  "                }\r",
+                  "            }\r",
+                  "        },\r",
+                  "        abilities: {\r",
+                  "            type: \"array\",\r",
+                  "            minItems: 1,\r",
+                  "            items: {\r",
+                  "                type: \"object\",\r",
+                  "                required: [\"ability\", \"is_hidden\", \"slot\"]\r",
+                  "            }\r",
+                  "        },\r",
+                  "        sprites: {\r",
+                  "            type: \"object\",\r",
+                  "            required: [\"front_default\"],\r",
+                  "            properties: {\r",
+                  "                front_default: { type: \"string\" }\r",
+                  "            }\r",
+                  "        }\r",
+                  "    }\r",
+                  "};\r",
+                  "\r",
+                  "// ─── Tests ────────────────────────────────────────────────────\r",
+                  "pm.test(\"Status 200\", () => {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"JSON Schema es válido\", () => {\r",
+                  "    pm.expect(tv4.validate(res, schema)).to.be.true;\r",
+                  "    if (!tv4.validate(res, schema)) {\r",
+                  "        console.error(\"Schema error:\", tv4.error);\r",
+                  "    }\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Contrato estable: ID y nombre no cambian entre runs\", () => {\r",
+                  "    pm.expect(res.id).to.eql(25);\r",
+                  "    pm.expect(res.name).to.eql(\"pikachu\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Contrato estable: tipo siempre es electric\", () => {\r",
+                  "    const types = res.types.map(t => t.type.name);\r",
+                  "    pm.expect(types).to.include(\"electric\");\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Contrato estable: base_experience siempre es 112\", () => {\r",
+                  "    pm.expect(res.base_experience).to.eql(112);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Contrato estable: tiene exactamente 6 stats\", () => {\r",
+                  "    pm.expect(res.stats).to.have.lengthOf(6);\r",
+                  "});\r",
+                  "\r",
+                  "// Guardar snapshot para comparar en siguiente run\r",
+                  "pm.environment.set(\"snapshot_pikachu_id\",   res.id);\r",
+                  "pm.environment.set(\"snapshot_pikachu_type\", res.types[0].type.name);\r",
+                  "pm.environment.set(\"snapshot_pikachu_bexp\", res.base_experience);\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pokemon/pikachu",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pokemon",
+                "pikachu"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "URL check 2a",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Sprite front_default existe y es string\", () => {\r",
+                  "    pm.expect(res.sprites.front_default).to.be.a(\"string\").and.not.empty;\r",
+                  "});\r",
+                  "\r",
+                  "// Guardar URL para el siguiente request\r",
+                  "pm.environment.set(\"sprite_url\", res.sprites.front_default);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pokemon/pikachu",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pokemon",
+                "pikachu"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "URL check (2a + 2b)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Sprite URL responde 200 — no está rota\", () => {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Content-Type es imagen\", () => {\r",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"image\");\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{sprite_url}}",
+              "host": [
+                "{{sprite_url}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pokemon count stability",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Status 200\", () => {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Total de pokémon no decrece entre runs\", () => {\r",
+                  "    const current = res.count;\r",
+                  "    const previous = parseInt(pm.environment.get(\"snapshot_pokemon_count\") || \"0\");\r",
+                  "\r",
+                  "    pm.expect(current).to.be.at.least(1302);\r",
+                  "\r",
+                  "    if (previous > 0) {\r",
+                  "        pm.expect(current).to.be.at.least(\r",
+                  "            previous,\r",
+                  "            `El count bajó de ${previous} a ${current} — posible regresión`\r",
+                  "        );\r",
+                  "    }\r",
+                  "\r",
+                  "    // Actualizar snapshot\r",
+                  "    pm.environment.set(\"snapshot_pokemon_count\", current);\r",
+                  "    console.log(`Pokemon count: ${current} (anterior: ${previous || \"primera run\"})`);\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pokemon?limit=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pokemon"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Equivalence: name",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Status 200 por nombre\", () => {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "// Guardar datos para comparar\r",
+                  "pm.environment.set(\"charizard_by_name_id\",     res.id);\r",
+                  "pm.environment.set(\"charizard_by_name_type\",   res.types[0].type.name);\r",
+                  "pm.environment.set(\"charizard_by_name_height\", res.height);\r",
+                  "pm.environment.set(\"charizard_by_name_weight\", res.weight);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pokemon/charizard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pokemon",
+                "charizard"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Equivalence: name vs ID (4a + 4b)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();\r",
+                  "\r",
+                  "pm.test(\"Status 200 por ID\", () => {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Resultado por nombre === resultado por ID\", () => {\r",
+                  "    pm.expect(res.id).to.eql(\r",
+                  "        parseInt(pm.environment.get(\"charizard_by_name_id\"))\r",
+                  "    );\r",
+                  "    pm.expect(res.types[0].type.name).to.eql(\r",
+                  "        pm.environment.get(\"charizard_by_name_type\")\r",
+                  "    );\r",
+                  "    pm.expect(res.height).to.eql(\r",
+                  "        parseInt(pm.environment.get(\"charizard_by_name_height\"))\r",
+                  "    );\r",
+                  "    pm.expect(res.weight).to.eql(\r",
+                  "        parseInt(pm.environment.get(\"charizard_by_name_weight\"))\r",
+                  "    );\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/pokemon/6",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pokemon",
+                "6"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "value": ""
+    }
+  ]
+}
