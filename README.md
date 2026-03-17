@@ -168,6 +168,40 @@ GitHub Actions
     └── Publish report to GitHub Pages
 ```
 
+## Performance Baselines
+
+Results obtained running k6 against PokéAPI from a local machine (Windows 10, standard broadband).
+
+### Smoke Test — 1 VU · 30s
+| Metric | Value |
+|---|---|
+| Requests | 27 |
+| avg response time | ~250ms |
+| p(95) | < 3000ms |
+| Error rate | 0.00% |
+
+### Load Test — up to 10 VUs · 2m
+| Metric | Value |
+|---|---|
+| Iterations | 324 |
+| avg response time | ~250ms |
+| p(95) | < 2000ms |
+| Error rate | 0.00% |
+
+### Stress Test — up to 40 VUs · 2m30s
+| Metric | Value |
+|---|---|
+| Iterations | 2,469 |
+| avg response time | 211ms |
+| p(90) | 415ms |
+| p(95) | 725ms |
+| max | 5.94s |
+| Error rate | 0.08% |
+| Checks passed | 99.95% |
+
+> **Observation:** PokéAPI handled 40 concurrent users with only 2 failed checks out of 4,938.
+> The API shows consistent performance under stress with p95 well under 1s at peak load.
+
 ---
 
 ## Known API Behaviors
